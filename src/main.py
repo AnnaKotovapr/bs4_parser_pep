@@ -1,24 +1,18 @@
-import csv
-import requests
 import logging
-from configs import configure_argument_parser, configure_logging
-
 import re
 from urllib.parse import urljoin
 
+import requests
 import requests_cache
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
-from urllib.parse import urljoin
-from constants import BASE_DIR, MAIN_DOC_URL, PEPS_URL, EXPECTED_STATUS
-
+from constants import BASE_DIR, MAIN_DOC_URL
+from constants import PEPS_URL, EXPECTED_STATUS
 from configs import configure_argument_parser
-
+from configs import configure_logging
 from outputs import control_output
-
-from utils import get_response
-from utils import find_tag
+from utils import get_response, find_tag
 
 
 def whats_new(session):
@@ -46,6 +40,7 @@ def whats_new(session):
         results.append((version_link, h1.text, dl_text))
     
     return results
+
 
 def latest_versions(session):
     response = get_response(session, MAIN_DOC_URL)
@@ -77,7 +72,6 @@ def latest_versions(session):
     return results
 
 def download(session):
-    # Вместо константы DOWNLOADS_URL, используйте переменную downloads_url.
     downloads_url = urljoin(MAIN_DOC_URL, 'download.html')
     response = get_response(session, downloads_url)
     if response is None:
@@ -100,17 +94,7 @@ def download(session):
 
 
 def pep(session):
-    counter = {
-        'Accepted': 0,
-        'Active': 0,
-        'Deferred': 0,
-        'Draft': 0,
-        'Final': 0,
-        'Provisional': 0,
-        'Rejected': 0,
-        'Superseded': 0,
-        'Withdrawn': 0
-    }
+
     response = get_response(session, PEPS_URL)
     if response is None:
         return
@@ -118,10 +102,12 @@ def pep(session):
     soup = BeautifulSoup(response.text, features='lxml')
     section_tag = soup.find('section', {'id': 'numerical-index'})
     tr_tags = section_tag.find_all('tr')
-    
 
+    status_sum = {}
+    total_peps = 0
 
     for tr_tag in tqdm(tr_tags[1:]):
+        total_peps +=1
         pep_link = tr_tag.td.find_next_sibling().find('a')['href']
         pep_url = urljoin(PEPS_URL, pep_link)  # полная ссылка
 
@@ -131,17 +117,29 @@ def pep(session):
 
         soup_pep = BeautifulSoup(response_for_pep.text, features='lxml')
         
-        dl_tag = soup_pep.find('dl', class_='rfc2822 field-list simple')
+        dl_tag = soup_pep.find('dl', attrs={'class': 'rfc2822 field-list simple'})
+
+        if dl_tag is not None:
+            status_pep = dl_tag.find(string='Status').parent.find_next_sibling('dd').string
+        
+        if status_pep in status_sum:
+            status_sum[status_pep] += 1
+        if status_pep not in status_sum:
+            status_sum[status_pep] = 1
+        if status_pep not in EXPECTED_STATUS[tr_tag.td.text[1:]]:
+            error_message = (f'Несовпадающие статусы:\n'
+                             f'{pep_url}\n'
+                             f'Статус в карточке: {status_pep}\n'
+                             f'Ожидаемые статусы: '
+                             f'{EXPECTED_STATUS[tr_tag.td.text[1:]]}')
+            logging.warning(error_message)
     
-        status_tag = soup_pep.find(string=["Status"])
-        print(status_tag)
-        # if status_tag:
-        #     status = status_tag.find_next_sibling().string
-        # print(status)
+    results = [('Статус', 'Количество')]
 
-        # counter[status] = counter.get(status, 0) + 1
-        # print(counter[status])
-
+    for status in status_sum:
+        results.append((status, status_sum[status]))
+    results.append(('Total', total_peps))
+    return results
 
 
 MODE_TO_FUNCTION = {
@@ -150,6 +148,7 @@ MODE_TO_FUNCTION = {
     'download': download,
     'pep': pep,
 }
+
 
 def main():
     configure_logging()
@@ -172,4 +171,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main() 
+    main()

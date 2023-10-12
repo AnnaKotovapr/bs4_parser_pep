@@ -1,4 +1,3 @@
-# utils.py
 import logging
 
 from requests import RequestException
