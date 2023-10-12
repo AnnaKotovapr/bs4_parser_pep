@@ -132,12 +132,13 @@ def pep(session):
         soup_pep = BeautifulSoup(response_for_pep.text, features='lxml')
         
         dl_tag = soup_pep.find('dl', class_='rfc2822 field-list simple')
-        #status_dt_tag = dl_tag.find_all('dt', class_='field-even', text='Status')
     
-        status_tag = soup_pep.find(string=["Status"]).parent
+        status_tag = soup_pep.find(string=["Status"])
         print(status_tag)
-        if status_tag:
-            status = status_tag.find_next_sibling().string
+        # if status_tag:
+        #     status = status_tag.find_next_sibling().string
+        # print(status)
+
         # counter[status] = counter.get(status, 0) + 1
         # print(counter[status])
 
