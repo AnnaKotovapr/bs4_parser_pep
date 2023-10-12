@@ -127,7 +127,7 @@ def pep(session):
             status_pep = dl_tag.find(
                 string='Status'
             ).parent.find_next_sibling('dd').string
-        
+
         if status_pep in status_sum:
             status_sum[status_pep] += 1
         if status_pep not in status_sum:
