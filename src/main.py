@@ -29,7 +29,7 @@ def whats_new(session):
     )
 
     for section in tqdm(sections_by_python):
-        version_a_tag = section.find('a')
+        version_a_tag = find_tag(section, 'a')
         href = version_a_tag['href']
         version_link = urljoin(whats_new_url, href)
         response = get_response(session, version_link)
@@ -37,7 +37,7 @@ def whats_new(session):
             continue
         soup = BeautifulSoup(response.text, 'lxml')
         h1 = find_tag(soup, 'h1')
-        dl = soup.find('dl')
+        dl = find_tag(soup, 'dl')
         dl_text = dl.text.replace('\n', ' ')
         results.append((version_link, h1.text, dl_text))
 
@@ -49,7 +49,7 @@ def latest_versions(session):
     if response is None:
         return
     soup = BeautifulSoup(response.text, 'lxml')
-    sidebar = soup.find('div', {'class': 'sphinxsidebarwrapper'})
+    sidebar = soup.find_tag('div', {'class': 'sphinxsidebarwrapper'})
     ul_tags = sidebar.find_all('ul')
     for ul in ul_tags:
         if 'All versions' in ul.text:
@@ -78,10 +78,13 @@ def download(session):
     response = get_response(session, downloads_url)
     if response is None:
         return
+
     soup = BeautifulSoup(response.text, 'lxml')
-    main_tag = soup.find('div', {'role': 'main'})
-    table_tag = main_tag.find('table', {'class': 'docutils'})
-    pdf_a4_tag = table_tag.find('a', {'href': re.compile(r'.+pdf-a4\.zip$')})
+    main_tag = find_tag(soup, 'div', {'role': 'main'})
+    table_tag = find_tag(main_tag,'table', {'class': 'docutils'})
+    pdf_a4_tag = find_tag(
+        table_tag, 'a', {'href': re.compile(r'.+pdf-a4\.zip$')}
+    )
     pdf_a4_link = pdf_a4_tag['href']
     archive_url = urljoin(downloads_url, pdf_a4_link)
     filename = archive_url.split('/')[-1]
@@ -90,6 +93,9 @@ def download(session):
     archive_path = downloads_dir / filename
 
     response = session.get(archive_url)
+    if response is None:
+        return
+
     with open(archive_path, 'wb') as file:
         file.write(response.content)
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
@@ -102,34 +108,34 @@ def pep(session):
         return
 
     soup = BeautifulSoup(response.text, features='lxml')
-    section_tag = soup.find('section', {'id': 'numerical-index'})
+    section_tag = soup.find_tag('section', {'id': 'numerical-index'})
     tr_tags = section_tag.find_all('tr')
-
+    
+    log_messages = []
     status_sum = {}
-    total_peps = 0
+    results = [('Статус', 'Количество')]
 
     for tr_tag in tqdm(tr_tags[1:]):
-        total_peps += 1
         pep_link = tr_tag.td.find_next_sibling().find('a')['href']
         pep_url = urljoin(PEPS_URL, pep_link)  # полная ссылка
 
         response_for_pep = get_response(session, pep_url)
         if response_for_pep is None:
-            return
+            continue
 
         soup_pep = BeautifulSoup(response_for_pep.text, features='lxml')
 
-        dl_tag = soup_pep.find(
+        dl_tag = soup_pep.find_tag(
             'dl', attrs={'class': 'rfc2822 field-list simple'}
         )
 
         if dl_tag is not None:
-            status_pep = dl_tag.find(
+            status_pep = dl_tag.find_tag(
                 string='Status'
             ).parent.find_next_sibling('dd').string
 
         if status_pep in status_sum:
-            status_sum[status_pep] += 1
+            status_sum.get(status_pep, 0) + 1
         if status_pep not in status_sum:
             status_sum[status_pep] = 1
         if status_pep not in EXPECTED_STATUS[tr_tag.td.text[1:]]:
@@ -138,13 +144,15 @@ def pep(session):
                              f'Статус в карточке: {status_pep}\n'
                              f'Ожидаемые статусы: '
                              f'{EXPECTED_STATUS[tr_tag.td.text[1:]]}')
-            logging.warning(error_message)
+            log_messages.append(error_message)
 
-    results = [('Статус', 'Количество')]
-
-    for status in status_sum:
-        results.append((status, status_sum[status]))
+    results.extend(status_sum.items())
+    total_peps = sum(status_sum.values())
     results.append(('Total', total_peps))
+
+    if log_messages:
+        logging.warning('\n'.join(log_messages))
+
     return results
 
 
