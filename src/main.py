@@ -81,7 +81,7 @@ def download(session):
 
     soup = BeautifulSoup(response.text, 'lxml')
     main_tag = find_tag(soup, 'div', {'role': 'main'})
-    table_tag = find_tag(main_tag,'table', {'class': 'docutils'})
+    table_tag = find_tag(main_tag, 'table', {'class': 'docutils'})
     pdf_a4_tag = find_tag(
         table_tag, 'a', {'href': re.compile(r'.+pdf-a4\.zip$')}
     )
@@ -110,7 +110,7 @@ def pep(session):
     soup = BeautifulSoup(response.text, features='lxml')
     section_tag = soup.find_tag('section', {'id': 'numerical-index'})
     tr_tags = section_tag.find_all('tr')
-    
+
     log_messages = []
     status_sum = {}
     results = [('Статус', 'Количество')]
