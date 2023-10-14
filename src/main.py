@@ -102,6 +102,20 @@ def download(session):
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
 
 
+def get_pep_status(soup_pep):
+    try:
+        dl_tag = find_tag(
+            soup_pep, 'dl', attrs={'class': 'rfc2822 field-list simple'}
+        )
+        if dl_tag is not None:
+            status_pep = dl_tag.find(
+                string='Status'
+            ).parent.find_next_sibling('dd').string
+    except ParserFindTagException as e:
+        print(f"Error: {e}")
+    return status_pep
+
+
 def pep(session):
 
     response = get_response(session, PEPS_URL)
@@ -125,17 +139,7 @@ def pep(session):
             continue
 
         soup_pep = BeautifulSoup(response_for_pep.text, features='lxml')
-        try:
-            dl_tag = find_tag(
-                soup_pep, 'dl', attrs={'class': 'rfc2822 field-list simple'}
-            )
-            if dl_tag is not None:
-                status_pep = dl_tag.find(
-                    string='Status'
-                ).parent.find_next_sibling('dd').string
-        except ParserFindTagException as e:
-            print(f"Error: {e}")
-            continue
+        status_pep = get_pep_status(soup_pep)
 
         if status_pep in status_sum:
             status_sum[status_pep] = status_sum.get(status_pep, 0) + 1
