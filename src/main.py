@@ -135,7 +135,7 @@ def pep(session):
             ).parent.find_next_sibling('dd').string
 
         if status_pep in status_sum:
-            status_sum.get(status_pep, 1) + 1
+            status_sum[status_pep] = status_sum.get(status_pep, 0) + 1
         if status_pep not in status_sum:
             status_sum[status_pep] = 1
         if status_pep not in EXPECTED_STATUS[tr_tag.td.text[1:]]:
