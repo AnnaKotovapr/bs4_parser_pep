@@ -13,6 +13,7 @@ from configs import configure_argument_parser
 from configs import configure_logging
 from outputs import control_output
 from utils import get_response, find_tag
+from exceptions import ParserFindTagException
 
 
 def whats_new(session):
@@ -108,7 +109,7 @@ def pep(session):
         return
 
     soup = BeautifulSoup(response.text, features='lxml')
-    section_tag = soup.find_tag('section', {'id': 'numerical-index'})
+    section_tag = find_tag(soup, 'section', {'id': 'numerical-index'})
     tr_tags = section_tag.find_all('tr')
 
     log_messages = []
@@ -124,15 +125,17 @@ def pep(session):
             continue
 
         soup_pep = BeautifulSoup(response_for_pep.text, features='lxml')
-
-        dl_tag = soup_pep.find_tag(
-            'dl', attrs={'class': 'rfc2822 field-list simple'}
-        )
-
-        if dl_tag is not None:
-            status_pep = dl_tag.find_tag(
-                string='Status'
-            ).parent.find_next_sibling('dd').string
+        try:
+            dl_tag = find_tag(
+                soup_pep, 'dl', attrs={'class': 'rfc2822 field-list simple'}
+            )
+            if dl_tag is not None:
+                status_pep = dl_tag.find(
+                    string='Status'
+                ).parent.find_next_sibling('dd').string
+        except ParserFindTagException as e:
+            print(f"Error: {e}")
+            continue
 
         if status_pep in status_sum:
             status_sum[status_pep] = status_sum.get(status_pep, 0) + 1
