@@ -106,13 +106,15 @@ def get_pep_status(soup_pep):
     try:
         dl_tag = find_tag(
             soup_pep, 'dl', attrs={'class': 'rfc2822 field-list simple'}
-        )
+        ) 
+
         if dl_tag is not None:
             status_pep = dl_tag.find(
                 string='Status'
             ).parent.find_next_sibling('dd').string
     except ParserFindTagException as e:
         print(f"Error: {e}")
+        status_pep = None
     return status_pep
 
 
@@ -140,11 +142,8 @@ def pep(session):
 
         soup_pep = BeautifulSoup(response_for_pep.text, features='lxml')
         status_pep = get_pep_status(soup_pep)
+        status_sum[status_pep] = status_sum.get(status_pep, 0) + 1
 
-        if status_pep in status_sum:
-            status_sum[status_pep] = status_sum.get(status_pep, 0) + 1
-        if status_pep not in status_sum:
-            status_sum[status_pep] = 1
         if status_pep not in EXPECTED_STATUS[tr_tag.td.text[1:]]:
             error_message = (f'Несовпадающие статусы:\n'
                              f'{pep_url}\n'
