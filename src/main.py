@@ -106,7 +106,7 @@ def get_pep_status(soup_pep):
     try:
         dl_tag = find_tag(
             soup_pep, 'dl', attrs={'class': 'rfc2822 field-list simple'}
-        ) 
+        )
 
         if dl_tag is not None:
             status_pep = dl_tag.find(
